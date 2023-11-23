@@ -6,6 +6,7 @@
 #     https://docs.scrapy.org/en/latest/topics/settings.html
 #     https://docs.scrapy.org/en/latest/topics/downloader-middleware.html
 #     https://docs.scrapy.org/en/latest/topics/spider-middleware.html
+import os
 
 BOT_NAME = "ArticleSpider"
 
@@ -63,6 +64,7 @@ ROBOTSTXT_OBEY = False
 # Configure item pipelines
 # See https://docs.scrapy.org/en/latest/topics/item-pipeline.html
 ITEM_PIPELINES = {
+   # "ArticleSpider.pipelines.images.ImagesPipeline": 1,
    "ArticleSpider.pipelines.ArticlespiderPipeline": 300,
 }
 
@@ -91,3 +93,14 @@ ITEM_PIPELINES = {
 REQUEST_FINGERPRINTER_IMPLEMENTATION = "2.7"
 TWISTED_REACTOR = "twisted.internet.asyncioreactor.AsyncioSelectorReactor"
 FEED_EXPORT_ENCODING = "utf-8"
+
+# IMAGE_STORE是图片下载后将要保存的文件夹，IMAGE_URLS_FIELD是item中装图片url的键值对，这个键值对的值
+# 一定得是一个list类型
+cur_path = os.path.abspath(__file__)
+IMAGES_STORE = os.path.join(cur_path, "images")
+IMAGES_URLS_FIELD = "images_url"
+
+MYSQL_HOST = "127.0.0.1"
+MYSQL_DBNAME = "article_spider"
+MYSQL_USER = "root"
+MYSQL_PASSWORD = "123456"

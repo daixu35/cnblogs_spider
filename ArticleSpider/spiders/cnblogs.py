@@ -9,6 +9,7 @@ from urllib import parse
 
 from ArticleSpider.items import CnblogsspiderItem
 
+
 class CnblogsSpider(scrapy.Spider):
     name = "cnblogs"
     allowed_domains = ["news.cnblogs.com"]

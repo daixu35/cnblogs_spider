@@ -71,7 +71,6 @@ class ArticleMysqlSave(object):
                       "ON DUPLICATE KEY UPDATE (create_date, fav_num)")
         self.cur.execute(insert_sql, (item.get("title", ""), item["url"], item["create_date"], item["fav_nums"]))
         self.conn.commit()
-        return item
 
     def spider_closed(self, spider):
         self.cur.close()

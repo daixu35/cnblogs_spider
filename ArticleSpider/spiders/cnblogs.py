@@ -7,6 +7,8 @@ import undetected_chromedriver as uc
 from scrapy.http import Request
 from urllib import parse
 
+from ArticleSpider.items import CnblogsspiderItem
+
 class CnblogsSpider(scrapy.Spider):
     name = "cnblogs"
     allowed_domains = ["news.cnblogs.com"]
@@ -36,16 +38,16 @@ class CnblogsSpider(scrapy.Spider):
         :return: yield出去获得的url，交给相应的函数解析
         """
         # 解析得到每条新闻的详情页
-        post_nodes = response.xpath("//div[@id='news_list']//div[@class='news_block']")
+        post_nodes = response.xpath("//div[@id='news_list']//div[@class='news_block']")[:1]
         for post_node in post_nodes:
             post_url = post_node.xpath(".//h2/a/@href").extract_first()
             yield Request(url=parse.urljoin(response.url, post_url), callback=self.parse_detail)
 
         # 解析得到下一页新闻列表页的url
-        next_url_node = response.xpath("//div[@class='pager']//a[contains(text(), 'Next >')]")
-        if next_url_node:
-            next_url = next_url_node.xpath("./@href").extract_first("")
-            yield Request(url=parse.urljoin(response.url, next_url), callback=self.parse)
+        # next_url_node = response.xpath("//div[@class='pager']//a[contains(text(), 'Next >')]")
+        # if next_url_node:
+        #     next_url = next_url_node.xpath("./@href").extract_first("")
+        #     yield Request(url=parse.urljoin(response.url, next_url), callback=self.parse)
 
     def parse_detail(self, response):
         """
@@ -55,12 +57,14 @@ class CnblogsSpider(scrapy.Spider):
         """
         match_re = re.match(".*?(\d+)", response.url)
         if match_re:
+            article_item = CnblogsspiderItem()
             news_main = response.xpath("//div[@id='news_main']")
             news_title = news_main.xpath("./div[@id='news_title']/a/text()").extract_first("")
             create_date = news_main.xpath("./div[@id='news_info']//span[@class='time']/text()").extract_first("")
             news_body = news_main.xpath("./div[@id='news_content']").extract_first("")
             news_tags = ",".join(news_main.xpath(".//div[@class='news_tags']//a[@class='catalink']/text()").extract())
 
+            # 分析得到点赞数这些数据存在于ajax请求中，解析得到该ajax请求的url是什么
             post_id = match_re.group(1)
             num_url = parse.urljoin(response.url, "/NewsAjax/GetAjaxNewsInfo?contentId={}".format(post_id))
             # 这一部分使用了requests库，是同步库，在scrapy异步性很强的框架中尽量少用，否则之后的请求容易被block住
@@ -71,9 +75,13 @@ class CnblogsSpider(scrapy.Spider):
             # dislike_num = j_data["BuryCount"]
             # comment_num = j_data["CommentCount"]
 
-            # 针对requests的改进，直接得到这个url然后yield出去，交给scrapy引擎下载，再设置回调函数
-            meta = {"news_title": news_title, "create_date": create_date, "news_body": news_body,
-                    "news_tags": news_tags}
+            # 针对requests的改进，直接得到这个url然后yield出去，交给scrapy引擎下载，再设置回调函数，并同时将item数据传递到回调函数
+            article_item["news_title"] = news_title
+            article_item["create_date"] = create_date
+            article_item["news_body"] = news_body
+            article_item["news_tags"] = news_tags
+
+            meta = {"article_item": article_item}
             yield Request(url=num_url, meta=meta, callback=self.parse_num)
 
     def parse_num(self, response):
@@ -82,8 +90,15 @@ class CnblogsSpider(scrapy.Spider):
         :param response: 点赞数，浏览数，讨厌数，评论数由ajax请求html返回结果
         :return:
         """
+        article_item = response.meta["article_item"]
         j_data = json.loads(response.text)
         praise_num = j_data["DiggCount"]
         view_num = j_data["TotalView"]
         dislike_num = j_data["BuryCount"]
         comment_num = j_data["CommentCount"]
+
+        article_item["praise_num"] = praise_num
+        article_item["view_num"] = view_num
+        article_item["dislike_num"] = dislike_num
+        article_item["comment_num"] = comment_num
+        yield article_item
